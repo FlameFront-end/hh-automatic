@@ -3,55 +3,61 @@
  * level: "Базовый", "Средний", "Продвинутый" или "-".
  * Значение "-" означает: добавить навык, но не выбирать ему уровень.
  */
+
+// Максимум - 30 для HH.ru
 const SKILLS = [
-  { skill: "React", level: "Средний" },
-  { skill: "React.js", level: "Средний" },
-  { skill: "TypeScript", level: "Средний" },
-  { skill: "JavaScript", level: "Средний" },
-  { skill: "Next.js", level: "Средний" },
-  { skill: "HTML", level: "Средний" },
-  { skill: "HTML5", level: "Средний" },
-  { skill: "CSS", level: "Средний" },
-  { skill: "CSS3", level: "Средний" },
-  { skill: "SCSS", level: "Средний" },
-  { skill: "Git", level: "Средний" },
-  { skill: "REST API", level: "Средний" },
-  { skill: "API", level: "Средний" },
-  { skill: "Docker", level: "Средний" },
-  { skill: "CI/CD", level: "Средний" },
-  { skill: "Redux", level: "Средний" },
-  { skill: "Redux Toolkit", level: "Средний" },
-  { skill: "RTK Query", level: "Средний" },
-  { skill: "TanStack Query", level: "Средний" },
-  { skill: "React Query", level: "Средний" },
-  { skill: "Zustand", level: "Средний" },
-  { skill: "Vite", level: "Средний" },
-  { skill: "Webpack", level: "Средний" },
-  { skill: "WebSocket", level: "Средний" },
-  { skill: "SSE", level: "Средний" },
-  { skill: "Node.js", level: "Средний" },
-  { skill: "NestJS", level: "Средний" },
+  { skill: "Kubernetes", level: "Продвинутый" },
+  { skill: "Linux", level: "Продвинутый" },
+  { skill: "Docker", level: "Продвинутый" },
+  { skill: "CI/CD", level: "Продвинутый" },
+  { skill: "DevOps", level: "Продвинутый" },
+  { skill: "Python", level: "Средний" },
+  { skill: "Bash", level: "Продвинутый" },
+  { skill: "Ansible", level: "Продвинутый" },
+  { skill: "Terraform", level: "Продвинутый" },
+  { skill: "GitLab CI/CD", level: "Продвинутый" },
   { skill: "PostgreSQL", level: "Средний" },
-  { skill: "Jest", level: "Средний" },
-  { skill: "React Testing Library", level: "Средний" },
-  { skill: "React Native", level: "Средний" },
-  { skill: "Алгоритмы и структуры данных", level: "Средний" }
+  { skill: "Администрирование серверов Linux", level: "Продвинутый" },
+  { skill: "Prometheus", level: "Продвинутый" },
+  { skill: "Grafana", level: "Продвинутый" },
+  { skill: "Nginx", level: "Продвинутый" },
+  { skill: "Git", level: "Продвинутый" },
+  { skill: "Helm", level: "Продвинутый" },
+  { skill: "Мониторинг", level: "Продвинутый" },
+  { skill: "Infrastructure as Code", level: "Продвинутый" },
+  { skill: "ArgoCD", level: "Средний" },
+  { skill: "SRE", level: "Средний" },
+  { skill: "SLI/SLO", level: "Средний" },
+  { skill: "Zabbix", level: "Средний" },
+  { skill: "ELK", level: "Средний" },
+  { skill: "Loki", level: "Средний" },
+  { skill: "Redis", level: "Средний" },
+  { skill: "HashiCorp Vault", level: "Средний" },
+  { skill: "AWS", level: "Средний" },
+  { skill: "Yandex Cloud", level: "Продвинутый" },
+  { skill: "Astra Linux", level: "Средний" }
 ];
+
+// HH иногда долго загружает отдельные подсказки.
+const OPTION_TIMEOUT = 10000;
+const OPTION_ATTEMPTS = 3;
+const OPTION_RETRY_PAUSE = 700;
+
 
 (async () => {
   const INPUT_SELECTOR =
     '[data-qa="resume-editor-skills-input"] input[data-qa="chips-trigger-input"]';
 
-  const normalize = value =>
+  const normalize = (value) =>
     String(value || "")
       .replace(/\u00a0/g, " ")
       .trim()
       .toLowerCase()
       .replace(/\s+/g, " ");
 
-  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const isVisible = element =>
+  const isVisible = (element) =>
     element instanceof HTMLElement &&
     element.getClientRects().length > 0 &&
     getComputedStyle(element).visibility !== "hidden";
@@ -66,7 +72,7 @@ const SKILLS = [
   const setInputValue = (input, value) => {
     const nativeSetter = Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
-      "value"
+      "value",
     )?.set;
 
     if (!nativeSetter) {
@@ -81,8 +87,8 @@ const SKILLS = [
         new InputEvent("input", {
           bubbles: true,
           inputType: value ? "insertText" : "deleteContentBackward",
-          data: value || null
-        })
+          data: value || null,
+        }),
       );
     } catch {
       input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -106,23 +112,24 @@ const SKILLS = [
   };
 
   const LEVEL_QA_BY_NAME = {
-    "базовый": "skill-level-1",
-    "средний": "skill-level-2",
-    "продвинутый": "skill-level-3"
+    базовый: "skill-level-1",
+    средний: "skill-level-2",
+    продвинутый: "skill-level-3",
   };
 
-  const findSkillCard = skill =>
-    [...document.querySelectorAll('[data-qa="skill"]')].find(card => {
+  const findSkillCard = (skill) =>
+    [...document.querySelectorAll('[data-qa="skill"]')].find((card) => {
       const name = card.querySelector('[data-qa="skillName"]');
       return name && normalize(name.textContent) === normalize(skill);
     });
 
   const clickSave = async () => {
     const saveButton = await waitFor(
-      () => [...document.querySelectorAll(
-        '[data-qa="resume-partial-edit-save"]'
-      )].find(isVisible),
-      8000
+      () =>
+        [
+          ...document.querySelectorAll('[data-qa="resume-partial-edit-save"]'),
+        ].find(isVisible),
+      8000,
     );
 
     if (!saveButton) return false;
@@ -140,21 +147,18 @@ const SKILLS = [
         skill,
         level,
         success: false,
-        reason: "неизвестный уровень"
+        reason: "неизвестный уровень",
       };
     }
 
-    const card = await waitFor(
-      () => findSkillCard(skill),
-      8000
-    );
+    const card = await waitFor(() => findSkillCard(skill), 8000);
 
     if (!card) {
       return {
         skill,
         level,
         success: false,
-        reason: "карточка навыка не найдена"
+        reason: "карточка навыка не найдена",
       };
     }
 
@@ -167,27 +171,24 @@ const SKILLS = [
         skill,
         level,
         success: false,
-        reason: "кнопка уровня не найдена"
+        reason: "кнопка уровня не найдена",
       };
     }
 
     label.scrollIntoView({ block: "center" });
     label.click();
 
-    const selected = await waitFor(
-      () => radio?.checked === true,
-      2500
-    );
+    const selected = await waitFor(() => radio?.checked === true, 2500);
 
     return {
       skill,
       level,
       success: Boolean(selected),
-      reason: selected ? "" : "уровень не подтвердился"
+      reason: selected ? "" : "уровень не подтвердился",
     };
   };
 
-  const hasSelectedSkill = skill => {
+  const hasSelectedSkill = (skill) => {
     const root = getSkillsRoot();
 
     if (!root) return false;
@@ -196,12 +197,12 @@ const SKILLS = [
 
     const chips = [
       ...root.querySelectorAll(
-        '[data-qa="chip"], [data-qa*="selected"], [data-qa*="tag"]'
-      )
+        '[data-qa="chip"], [data-qa*="selected"], [data-qa*="tag"]',
+      ),
     ];
 
     if (
-      chips.some(chip => {
+      chips.some((chip) => {
         if (!isVisible(chip) || chip.closest('[role="listbox"]')) {
           return false;
         }
@@ -212,7 +213,7 @@ const SKILLS = [
       return true;
     }
 
-    return [...root.querySelectorAll("span")].some(element => {
+    return [...root.querySelectorAll("span")].some((element) => {
       if (!isVisible(element) || element.closest('[role="listbox"]')) {
         return false;
       }
@@ -222,7 +223,7 @@ const SKILLS = [
       }
 
       return ![...element.children].some(
-        child => normalize(child.textContent) === expected
+        (child) => normalize(child.textContent) === expected,
       );
     });
   };
@@ -242,12 +243,11 @@ const SKILLS = [
     }
 
     return (
-      [...document.querySelectorAll('[role="listbox"]')].find(isVisible) ||
-      null
+      [...document.querySelectorAll('[role="listbox"]')].find(isVisible) || null
     );
   };
 
-  const findExactOption = skill => {
+  const findExactOption = (skill) => {
     const listbox = getCurrentListbox();
 
     if (!listbox) return null;
@@ -255,21 +255,21 @@ const SKILLS = [
     const expected = normalize(skill);
 
     const roleOption = [...listbox.querySelectorAll('[role="option"]')].find(
-      option =>
-        isVisible(option) && normalize(option.textContent) === expected
+      (option) =>
+        isVisible(option) && normalize(option.textContent) === expected,
     );
 
     if (roleOption) return roleOption;
 
     const exactElement = [
-      ...listbox.querySelectorAll("li, button, label, div, span")
-    ].find(element => {
+      ...listbox.querySelectorAll("li, button, label, div, span"),
+    ].find((element) => {
       if (!isVisible(element) || normalize(element.textContent) !== expected) {
         return false;
       }
 
       return ![...element.children].some(
-        child => normalize(child.textContent) === expected
+        (child) => normalize(child.textContent) === expected,
       );
     });
 
@@ -277,7 +277,7 @@ const SKILLS = [
 
     return (
       exactElement.closest(
-        '[role="option"], li, button, label, [data-qa*="suggest"]'
+        '[role="option"], li, button, label, [data-qa*="suggest"]',
       ) || exactElement
     );
   };
@@ -291,8 +291,8 @@ const SKILLS = [
       new KeyboardEvent("keydown", {
         key: "Escape",
         code: "Escape",
-        bubbles: true
-      })
+        bubbles: true,
+      }),
     );
 
     setInputValue(input, "");
@@ -306,7 +306,7 @@ const SKILLS = [
 
   if (!initialInput) {
     console.error(
-      "Не найдено поле Skills. Открой страницу редактирования навыков."
+      "Не найдено поле Skills. Открой страницу редактирования навыков.",
     );
     return;
   }
@@ -325,7 +325,7 @@ const SKILLS = [
     let successfullyAdded = false;
     let failureReason = "точная подсказка не найдена";
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= OPTION_ATTEMPTS; attempt++) {
       if (hasSelectedSkill(skill)) {
         successfullyAdded = true;
         break;
@@ -355,21 +355,27 @@ const SKILLS = [
         if (!dropdownOpened) return null;
 
         return findExactOption(skill);
-      }, 4000);
+      }, OPTION_TIMEOUT);
 
       if (!option) {
         failureReason = "точная подсказка не появилась";
         clearSearch();
+
+        if (attempt < OPTION_ATTEMPTS) {
+          console.warn(
+            `⏳ Подсказка не появилась для ${skill}. Повтор ${attempt + 1}/${OPTION_ATTEMPTS}…`,
+          );
+          await sleep(OPTION_RETRY_PAUSE);
+          continue;
+        }
+
         break;
       }
 
       option.scrollIntoView({ block: "nearest" });
       option.click();
 
-      const chipAppeared = await waitFor(
-        () => hasSelectedSkill(skill),
-        2500
-      );
+      const chipAppeared = await waitFor(() => hasSelectedSkill(skill), 2500);
 
       if (chipAppeared) {
         successfullyAdded = true;
@@ -379,13 +385,13 @@ const SKILLS = [
       failureReason = "подсказка была нажата, но чип не появился";
       clearSearch();
 
-      if (attempt < 2) await sleep(400);
+      if (attempt < OPTION_ATTEMPTS) await sleep(OPTION_RETRY_PAUSE);
     }
 
     if (successfullyAdded) {
       added.push({
         skill,
-        level: skillConfig.level
+        level: skillConfig.level,
       });
       console.log("✅ Добавлен:", skill);
     } else {
@@ -400,7 +406,7 @@ const SKILLS = [
   console.log("\n=== ЗАВЕРШЕНО ===");
   console.log(
     `Добавлено: ${added.length}`,
-    added.map(item => `${item.skill} — ${item.level}`)
+    added.map((item) => `${item.skill} — ${item.level}`),
   );
   console.log(`Уже присутствовало: ${alreadyPresent.length}`, alreadyPresent);
   console.log(`Пропущено: ${skipped.length}`, skipped);
@@ -421,7 +427,7 @@ const SKILLS = [
 
   const levelPageReady = await waitFor(
     () => document.querySelector('[data-qa="skill"] [data-qa="skill-level-1"]'),
-    10000
+    10000,
   );
 
   if (!levelPageReady) {
@@ -439,7 +445,7 @@ const SKILLS = [
         skill: item.skill,
         level: "-",
         success: true,
-        reason: "уровень не выбирался"
+        reason: "уровень не выбирался",
       });
       console.log(`↪️ Уровень пропущен: ${item.skill}`);
       continue;
@@ -453,7 +459,7 @@ const SKILLS = [
       console.log(`✅ Уровень выбран: ${skill} — ${level}`);
     } else {
       console.warn(
-        `⚠️ Не удалось выбрать уровень: ${skill} — ${result.reason}`
+        `⚠️ Не удалось выбрать уровень: ${skill} — ${result.reason}`,
       );
     }
   }
@@ -464,12 +470,12 @@ const SKILLS = [
 
   if (!levelSave) {
     console.error(
-      "Уровни выбраны, но кнопка финального «Сохранить» не найдена."
+      "Уровни выбраны, но кнопка финального «Сохранить» не найдена.",
     );
     return;
   }
 
   console.log(
-    "Готово: навыки добавлены, уровни выбраны, финальное сохранение нажато."
+    "Готово: навыки добавлены, уровни выбраны, финальное сохранение нажато.",
   );
 })();
