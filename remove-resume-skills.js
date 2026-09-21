@@ -10,7 +10,7 @@
 
 // false — удалить только навыки из SKILLS_TO_REMOVE.
 // true — удалить все выбранные навыки из резюме.
-const REMOVE_ALL_SKILLS = false;
+const REMOVE_ALL_SKILLS = true;
 
 const SKILLS_TO_REMOVE = [
   "Linux",
@@ -23,7 +23,8 @@ const SKILLS_TO_REMOVE = [
   const ROOT_SELECTOR = '[data-qa="resume-editor-skills-input"]';
   const CHIP_SELECTOR = '[data-qa^="chips-trigger-chip-"]';
   const DELETE_SELECTOR =
-    '[data-qa="chip-delete-action"], button[aria-label="Удалить"]';
+    '[data-qa="chip-delete-action"], ' +
+    'button[aria-label="Удалить"], [role="button"][aria-label="Удалить"]';
 
   let stopped = false;
 
@@ -68,6 +69,25 @@ const SKILLS_TO_REMOVE = [
     getSelectedChips().find(
       chip => normalize(getChipName(chip)) === normalize(skill)
     );
+
+  const getDeleteButton = chip => {
+    if (!chip) return null;
+
+    const roots = [
+      chip,
+      chip.closest(CHIP_SELECTOR),
+      chip.parentElement
+    ].filter(Boolean);
+
+    for (const root of roots) {
+      if (root.matches?.(DELETE_SELECTOR)) return root;
+
+      const button = root.querySelector(DELETE_SELECTOR);
+      if (button) return button;
+    }
+
+    return null;
+  };
 
   const waitFor = async (check, timeout = 3000) => {
     const deadline = performance.now() + timeout;
@@ -152,9 +172,9 @@ const SKILLS_TO_REMOVE = [
     if (stopped) break;
 
     const chip = findChip(item.requested);
-    const deleteButton = chip?.querySelector(DELETE_SELECTOR);
+    const deleteButton = getDeleteButton(chip);
 
-    if (!chip || !deleteButton || !isVisible(deleteButton)) {
+    if (!chip || !deleteButton) {
       failed.push({
         skill: item.currentName,
         reason: 'кнопка удаления не найдена'
@@ -162,6 +182,7 @@ const SKILLS_TO_REMOVE = [
       continue;
     }
 
+    deleteButton.scrollIntoView({ block: 'center', inline: 'nearest' });
     deleteButton.click();
 
     const disappeared = await waitFor(
