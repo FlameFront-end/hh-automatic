@@ -449,10 +449,10 @@ const SKILLS = [
     levelResults.push(result);
 
     if (result.success) {
-      console.log(`✅ Уровень выбран: ${skill} — ${level}`);
+      console.log(`✅ Уровень выбран: ${item.skill} — ${level}`);
     } else {
       console.warn(
-        `⚠️ Не удалось выбрать уровень: ${skill} — ${result.reason}`,
+        `⚠️ Не удалось выбрать уровень: ${item.skill} — ${result.reason}`,
       );
     }
   }
