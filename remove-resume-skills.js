@@ -8,6 +8,10 @@
  * кнопку «Сохранить» автоматически.
  */
 
+// false — удалить только навыки из SKILLS_TO_REMOVE.
+// true — удалить все выбранные навыки из резюме.
+const REMOVE_ALL_SKILLS = false;
+
 const SKILLS_TO_REMOVE = [
   "Linux",
   "Docker",
@@ -87,12 +91,16 @@ const SKILLS_TO_REMOVE = [
     return;
   }
 
-  if (!SKILLS_TO_REMOVE.length) {
+  if (!REMOVE_ALL_SKILLS && !SKILLS_TO_REMOVE.length) {
     console.warn('Массив SKILLS_TO_REMOVE пуст.');
     return;
   }
 
-  const found = SKILLS_TO_REMOVE
+  const requestedSkills = REMOVE_ALL_SKILLS
+    ? getSelectedChips().map(getChipName)
+    : SKILLS_TO_REMOVE;
+
+  const found = requestedSkills
     .map(skill => ({ requested: skill, chip: findChip(skill) }))
     .filter(item => item.chip)
     .map(item => ({
@@ -100,9 +108,11 @@ const SKILLS_TO_REMOVE = [
       currentName: getChipName(item.chip)
     }));
 
-  const notFound = SKILLS_TO_REMOVE.filter(
-    skill => !found.some(item => normalize(item.skill) === normalize(skill))
-  );
+  const notFound = REMOVE_ALL_SKILLS
+    ? []
+    : SKILLS_TO_REMOVE.filter(
+        skill => !found.some(item => normalize(item.skill) === normalize(skill))
+      );
 
   console.table(found);
 
@@ -115,11 +125,24 @@ const SKILLS_TO_REMOVE = [
     return;
   }
 
-  if (!confirm(
-    `Будут удалены навыки: ${found.map(item => item.currentName).join(', ')}.\n\nПродолжить?`
-  )) {
+  const modeDescription = REMOVE_ALL_SKILLS
+    ? 'все выбранные навыки'
+    : found.map(item => item.currentName).join(', ');
+
+  if (!confirm(`Будут удалены ${modeDescription}.\n\nПродолжить?`)) {
     console.log('Отменено. Навыки не изменены.');
     return;
+  }
+
+  if (REMOVE_ALL_SKILLS) {
+    const confirmationPhrase = prompt(
+      'Для удаления всех навыков введите точно:\nУДАЛИТЬ ВСЕ НАВЫКИ'
+    );
+
+    if (confirmationPhrase !== 'УДАЛИТЬ ВСЕ НАВЫКИ') {
+      console.log('Дополнительное подтверждение не пройдено.');
+      return;
+    }
   }
 
   const removed = [];
