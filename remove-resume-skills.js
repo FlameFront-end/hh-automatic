@@ -171,11 +171,8 @@ const SKILLS_TO_REMOVE = [
   for (const item of found) {
     if (stopped) break;
 
-    const deleteButton = await waitFor(
-      () => getDeleteButton(findChip(item.requested)),
-      3000
-    );
     const chip = findChip(item.requested);
+    const deleteButton = getDeleteButton(chip);
 
     if (!chip || !deleteButton) {
       failed.push({
