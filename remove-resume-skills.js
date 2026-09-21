@@ -89,6 +89,46 @@ const SKILLS_TO_REMOVE = [
     return null;
   };
 
+  const clickLikeUser = element => {
+    const rect = element.getBoundingClientRect();
+    const point = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      detail: 1,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+    };
+
+    const dispatchMouse = (type, extra = {}) =>
+      element.dispatchEvent(new MouseEvent(type, { ...point, ...extra }));
+
+    const dispatchPointer = (type, extra = {}) => {
+      if (typeof PointerEvent !== 'function') return;
+
+      element.dispatchEvent(
+        new PointerEvent(type, {
+          ...point,
+          pointerId: 1,
+          pointerType: 'mouse',
+          isPrimary: true,
+          ...extra,
+        }),
+      );
+    };
+
+    dispatchPointer('pointerover');
+    dispatchMouse('mouseover');
+    dispatchPointer('pointermove');
+    dispatchMouse('mousemove');
+    dispatchPointer('pointerdown', { buttons: 1 });
+    dispatchMouse('mousedown', { buttons: 1 });
+    element.focus();
+    dispatchPointer('pointerup');
+    dispatchMouse('mouseup');
+    dispatchMouse('click');
+  };
+
   const waitFor = async (check, timeout = 3000) => {
     const deadline = performance.now() + timeout;
 
@@ -183,7 +223,7 @@ const SKILLS_TO_REMOVE = [
     }
 
     deleteButton.scrollIntoView({ block: 'center', inline: 'nearest' });
-    deleteButton.click();
+    clickLikeUser(deleteButton);
 
     const disappeared = await waitFor(
       () => !findChip(item.requested),
