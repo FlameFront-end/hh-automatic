@@ -37,6 +37,19 @@ const SKILLS = [
   "Алгоритмы и структуры данных"
 ];
 
+// После добавления перейти к уровням навыков и сохранить всё автоматически.
+const AUTO_FINISH_LEVELS = true;
+
+// Уровень по умолчанию для добавленных навыков.
+const DEFAULT_SKILL_LEVEL = "Средний";
+
+// При необходимости задайте отдельный уровень для конкретного навыка.
+// Допустимые значения: "Базовый", "Средний", "Продвинутый".
+const SKILL_LEVELS = {
+  // "React": "Продвинутый",
+  // "Английский язык": "Средний"
+};
+
 (async () => {
   const INPUT_SELECTOR =
     '[data-qa="resume-editor-skills-input"] input[data-qa="chips-trigger-input"]';
@@ -102,6 +115,88 @@ const SKILLS = [
     }
 
     return null;
+  };
+
+  const LEVEL_QA_BY_NAME = {
+    "базовый": "skill-level-1",
+    "средний": "skill-level-2",
+    "продвинутый": "skill-level-3"
+  };
+
+  const findSkillCard = skill =>
+    [...document.querySelectorAll('[data-qa="skill"]')].find(card => {
+      const name = card.querySelector('[data-qa="skillName"]');
+      return name && normalize(name.textContent) === normalize(skill);
+    });
+
+  const clickSave = async () => {
+    const saveButton = await waitFor(
+      () => [...document.querySelectorAll(
+        '[data-qa="resume-partial-edit-save"]'
+      )].find(isVisible),
+      8000
+    );
+
+    if (!saveButton) return false;
+
+    saveButton.scrollIntoView({ block: "center" });
+    saveButton.click();
+    return true;
+  };
+
+  const setSkillLevel = async (skill, level) => {
+    const levelQa = LEVEL_QA_BY_NAME[normalize(level)];
+
+    if (!levelQa) {
+      return {
+        skill,
+        level,
+        success: false,
+        reason: "неизвестный уровень"
+      };
+    }
+
+    const card = await waitFor(
+      () => findSkillCard(skill),
+      8000
+    );
+
+    if (!card) {
+      return {
+        skill,
+        level,
+        success: false,
+        reason: "карточка навыка не найдена"
+      };
+    }
+
+    const levelElement = card.querySelector(`[data-qa="${levelQa}"]`);
+    const label = levelElement?.closest("label");
+    const radio = label?.querySelector('input[type="radio"]');
+
+    if (!levelElement || !label) {
+      return {
+        skill,
+        level,
+        success: false,
+        reason: "кнопка уровня не найдена"
+      };
+    }
+
+    label.scrollIntoView({ block: "center" });
+    label.click();
+
+    const selected = await waitFor(
+      () => radio?.checked === true,
+      2500
+    );
+
+    return {
+      skill,
+      level,
+      success: Boolean(selected),
+      reason: selected ? "" : "уровень не подтвердился"
+    };
   };
 
   const hasSelectedSkill = skill => {
@@ -313,7 +408,67 @@ const SKILLS = [
   console.log(`Добавлено: ${added.length}`, added);
   console.log(`Уже присутствовало: ${alreadyPresent.length}`, alreadyPresent);
   console.log(`Пропущено: ${skipped.length}`, skipped);
+
+  if (!added.length) {
+    console.log("Новых навыков нет — сохранение не требуется.");
+    return;
+  }
+
+  if (!AUTO_FINISH_LEVELS) {
+    console.log(
+      "Автоматический переход к уровням отключён. Проверь список и нажми «Сохранить» самостоятельно."
+    );
+    return;
+  }
+
+  console.log("Сохраняю навыки и перехожу к выбору уровней…");
+
+  const firstSave = await clickSave();
+
+  if (!firstSave) {
+    console.error("Не найдена кнопка «Сохранить» на странице навыков.");
+    return;
+  }
+
+  const levelPageReady = await waitFor(
+    () => document.querySelector('[data-qa="skill"] [data-qa="skill-level-1"]'),
+    10000
+  );
+
+  if (!levelPageReady) {
+    console.error("Страница выбора уровней не открылась.");
+    return;
+  }
+
+  const levelResults = [];
+
+  for (const skill of added) {
+    const level = SKILL_LEVELS[skill] || DEFAULT_SKILL_LEVEL;
+    const result = await setSkillLevel(skill, level);
+
+    levelResults.push(result);
+
+    if (result.success) {
+      console.log(`✅ Уровень выбран: ${skill} — ${level}`);
+    } else {
+      console.warn(
+        `⚠️ Не удалось выбрать уровень: ${skill} — ${result.reason}`
+      );
+    }
+  }
+
+  console.table(levelResults);
+
+  const levelSave = await clickSave();
+
+  if (!levelSave) {
+    console.error(
+      "Уровни выбраны, но кнопка финального «Сохранить» не найдена."
+    );
+    return;
+  }
+
   console.log(
-    "Изменения НЕ сохранены. Проверь список и нажми «Сохранить» самостоятельно."
+    "Готово: навыки добавлены, уровни выбраны, финальное сохранение нажато."
   );
 })();
