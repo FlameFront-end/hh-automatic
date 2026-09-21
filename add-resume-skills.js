@@ -38,12 +38,6 @@ const SKILLS = [
   { skill: "Astra Linux", level: "Средний" }
 ];
 
-// HH иногда долго загружает отдельные подсказки.
-const OPTION_TIMEOUT = 10000;
-const OPTION_ATTEMPTS = 3;
-const OPTION_RETRY_PAUSE = 700;
-
-
 (async () => {
   const INPUT_SELECTOR =
     '[data-qa="resume-editor-skills-input"] input[data-qa="chips-trigger-input"]';
@@ -325,7 +319,7 @@ const OPTION_RETRY_PAUSE = 700;
     let successfullyAdded = false;
     let failureReason = "точная подсказка не найдена";
 
-    for (let attempt = 1; attempt <= OPTION_ATTEMPTS; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       if (hasSelectedSkill(skill)) {
         successfullyAdded = true;
         break;
@@ -341,7 +335,15 @@ const OPTION_RETRY_PAUSE = 700;
       clearSearch();
       await sleep(120);
 
-      setInputValue(getInput(), skill);
+      const searchInput = getInput();
+
+      if (!searchInput) {
+        failureReason = "поле Skills исчезло со страницы";
+        break;
+      }
+
+      searchInput.focus();
+      setInputValue(searchInput, skill);
 
       const option = await waitFor(() => {
         const currentInput = getInput();
@@ -355,20 +357,11 @@ const OPTION_RETRY_PAUSE = 700;
         if (!dropdownOpened) return null;
 
         return findExactOption(skill);
-      }, OPTION_TIMEOUT);
+      }, 4000);
 
       if (!option) {
         failureReason = "точная подсказка не появилась";
         clearSearch();
-
-        if (attempt < OPTION_ATTEMPTS) {
-          console.warn(
-            `⏳ Подсказка не появилась для ${skill}. Повтор ${attempt + 1}/${OPTION_ATTEMPTS}…`,
-          );
-          await sleep(OPTION_RETRY_PAUSE);
-          continue;
-        }
-
         break;
       }
 
@@ -385,7 +378,7 @@ const OPTION_RETRY_PAUSE = 700;
       failureReason = "подсказка была нажата, но чип не появился";
       clearSearch();
 
-      if (attempt < OPTION_ATTEMPTS) await sleep(OPTION_RETRY_PAUSE);
+      if (attempt < 2) await sleep(400);
     }
 
     if (successfullyAdded) {
