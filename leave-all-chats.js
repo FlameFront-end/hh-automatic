@@ -26,6 +26,91 @@
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+  const tokenFromObject = value => {
+    if (!value || typeof value !== 'object') return null;
+
+    for (const [key, nested] of Object.entries(value)) {
+      if (
+        /xsrf|csrf/i.test(key) &&
+        typeof nested === 'string' &&
+        nested.length >= 16
+      ) {
+        return nested;
+      }
+
+      if (nested && typeof nested === 'object') {
+        const result = tokenFromObject(nested);
+        if (result) return result;
+      }
+    }
+
+    return null;
+  };
+
+  const tokenFromText = value => {
+    if (!value) return null;
+
+    const patterns = [
+      /["'](?:xsrfToken|_xsrf|xsrf|x-xsrftoken)["']\s*:\s*["']([^"']+)["']/i,
+      /(?:xsrfToken|_xsrf|xsrf|x-xsrftoken)\s*[:=]\s*["']([^"']+)["']/i
+    ];
+
+    for (const pattern of patterns) {
+      const match = String(value).match(pattern);
+      if (match?.[1] && match[1].length >= 16) return match[1];
+    }
+
+    return null;
+  };
+
+  const getXsrfToken = async () => {
+    const metaToken = document.querySelector(
+      'meta[name="xsrf-token"], meta[name="x-xsrftoken"], meta[name="csrf-token"]'
+    )?.content;
+
+    if (metaToken) return metaToken;
+
+    const cookieToken = document.cookie
+      .split(';')
+      .map(cookie => cookie.trim().split('='))
+      .find(([name]) =>
+        /^(?:_xsrf|xsrf|xsrf-token|x-xsrftoken)$/i.test(name)
+      );
+
+    if (cookieToken?.[1]) {
+      return decodeURIComponent(cookieToken[1]);
+    }
+
+    const initialState = document.querySelector(
+      'template#HH-Lux-InitialState'
+    )?.content?.textContent;
+
+    const initialToken = tokenFromText(initialState);
+    if (initialToken) return initialToken;
+
+    try {
+      const response = await fetch('/applicant/settings', {
+        credentials: 'include',
+        headers: { accept: 'text/html, application/json' }
+      });
+
+      const body = await response.text();
+
+      try {
+        const json = JSON.parse(body);
+        const jsonToken = tokenFromObject(json);
+        if (jsonToken) return jsonToken;
+      } catch {
+        // Страница может вернуть HTML с SSR-данными — обработаем его ниже.
+      }
+
+      return tokenFromText(body);
+    } catch (error) {
+      console.warn('Автоматическое получение токена не удалось:', error.message);
+      return null;
+    }
+  };
+
   const scanChats = () => {
     document
       .querySelectorAll(
@@ -122,13 +207,23 @@
     return;
   }
 
-  const xsrfToken = prompt(
-    'Вставьте актуальное значение x-xsrftoken из запроса /chatik/api/leave:'
-  );
+  let xsrfToken = await getXsrfToken();
 
   if (!xsrfToken) {
-    console.log('Токен не указан. Ни один чат не обработан.');
-    return;
+    console.warn('Токен не найден автоматически.');
+
+    const manualToken = prompt(
+      'Автоматически получить токен не удалось. Вставьте x-xsrftoken вручную:'
+    );
+
+    if (!manualToken) {
+      console.log('Токен не указан. Ни один чат не обработан.');
+      return;
+    }
+
+    xsrfToken = manualToken;
+  } else {
+    console.log('Токен получен автоматически.');
   }
 
   let success = 0;
