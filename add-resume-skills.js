@@ -1,54 +1,42 @@
 /*
  * Настраиваемый список навыков.
- * Редактируйте только этот массив в верхней части файла.
+ * level: "Базовый", "Средний", "Продвинутый" или "-".
+ * Значение "-" означает: добавить навык, но не выбирать ему уровень.
  */
 const SKILLS = [
-  "React",
-  "React.js",
-  "TypeScript",
-  "JavaScript",
-  "Next.js",
-  "HTML",
-  "HTML5",
-  "CSS",
-  "CSS3",
-  "SCSS",
-  "Git",
-  "REST API",
-  "API",
-  "Docker",
-  "CI/CD",
-  "Redux",
-  "Redux Toolkit",
-  "RTK Query",
-  "TanStack Query",
-  "React Query",
-  "Zustand",
-  "Vite",
-  "Webpack",
-  "WebSocket",
-  "SSE",
-  "Node.js",
-  "NestJS",
-  "PostgreSQL",
-  "Jest",
-  "React Testing Library",
-  "React Native",
-  "Алгоритмы и структуры данных"
+  { skill: "React", level: "Средний" },
+  { skill: "React.js", level: "Средний" },
+  { skill: "TypeScript", level: "Средний" },
+  { skill: "JavaScript", level: "Средний" },
+  { skill: "Next.js", level: "Средний" },
+  { skill: "HTML", level: "Средний" },
+  { skill: "HTML5", level: "Средний" },
+  { skill: "CSS", level: "Средний" },
+  { skill: "CSS3", level: "Средний" },
+  { skill: "SCSS", level: "Средний" },
+  { skill: "Git", level: "Средний" },
+  { skill: "REST API", level: "Средний" },
+  { skill: "API", level: "Средний" },
+  { skill: "Docker", level: "Средний" },
+  { skill: "CI/CD", level: "Средний" },
+  { skill: "Redux", level: "Средний" },
+  { skill: "Redux Toolkit", level: "Средний" },
+  { skill: "RTK Query", level: "Средний" },
+  { skill: "TanStack Query", level: "Средний" },
+  { skill: "React Query", level: "Средний" },
+  { skill: "Zustand", level: "Средний" },
+  { skill: "Vite", level: "Средний" },
+  { skill: "Webpack", level: "Средний" },
+  { skill: "WebSocket", level: "Средний" },
+  { skill: "SSE", level: "Средний" },
+  { skill: "Node.js", level: "Средний" },
+  { skill: "NestJS", level: "Средний" },
+  { skill: "PostgreSQL", level: "Средний" },
+  { skill: "Jest", level: "Средний" },
+  { skill: "React Testing Library", level: "Средний" },
+  { skill: "React Native", level: "Средний" },
+  { skill: "Алгоритмы и структуры данных", level: "Средний" }
 ];
-
-// После добавления перейти к уровням навыков и сохранить всё автоматически.
-const AUTO_FINISH_LEVELS = true;
-
-// Уровень по умолчанию для добавленных навыков.
-const DEFAULT_SKILL_LEVEL = "Средний";
-
-// При необходимости задайте отдельный уровень для конкретного навыка.
-// Допустимые значения: "Базовый", "Средний", "Продвинутый".
-const SKILL_LEVELS = {
-  // "React": "Продвинутый",
-  // "Английский язык": "Средний"
-};
 
 (async () => {
   const INPUT_SELECTOR =
@@ -325,7 +313,9 @@ const SKILL_LEVELS = {
 
   console.log(`Начинаю проверку ${SKILLS.length} навыков…`);
 
-  for (const skill of SKILLS) {
+  for (const skillConfig of SKILLS) {
+    const skill = skillConfig.skill;
+
     if (hasSelectedSkill(skill)) {
       alreadyPresent.push(skill);
       console.log("↪️ Уже есть:", skill);
@@ -393,7 +383,10 @@ const SKILL_LEVELS = {
     }
 
     if (successfullyAdded) {
-      added.push(skill);
+      added.push({
+        skill,
+        level: skillConfig.level
+      });
       console.log("✅ Добавлен:", skill);
     } else {
       skipped.push({ skill, reason: failureReason });
@@ -405,19 +398,15 @@ const SKILL_LEVELS = {
   }
 
   console.log("\n=== ЗАВЕРШЕНО ===");
-  console.log(`Добавлено: ${added.length}`, added);
+  console.log(
+    `Добавлено: ${added.length}`,
+    added.map(item => `${item.skill} — ${item.level}`)
+  );
   console.log(`Уже присутствовало: ${alreadyPresent.length}`, alreadyPresent);
   console.log(`Пропущено: ${skipped.length}`, skipped);
 
   if (!added.length) {
     console.log("Новых навыков нет — сохранение не требуется.");
-    return;
-  }
-
-  if (!AUTO_FINISH_LEVELS) {
-    console.log(
-      "Автоматический переход к уровням отключён. Проверь список и нажми «Сохранить» самостоятельно."
-    );
     return;
   }
 
@@ -442,9 +431,21 @@ const SKILL_LEVELS = {
 
   const levelResults = [];
 
-  for (const skill of added) {
-    const level = SKILL_LEVELS[skill] || DEFAULT_SKILL_LEVEL;
-    const result = await setSkillLevel(skill, level);
+  for (const item of added) {
+    const level = String(item.level || "-").trim();
+
+    if (!level || level === "-") {
+      levelResults.push({
+        skill: item.skill,
+        level: "-",
+        success: true,
+        reason: "уровень не выбирался"
+      });
+      console.log(`↪️ Уровень пропущен: ${item.skill}`);
+      continue;
+    }
+
+    const result = await setSkillLevel(item.skill, level);
 
     levelResults.push(result);
 
